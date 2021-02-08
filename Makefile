@@ -1,13 +1,23 @@
-TARGET_EXEC ?= chip8.elf
-
+WIN ?= n
+EXT ?= elf
 CC = gcc
 CXX = g++
+TARGET_EXEC ?= chip8.$(EXT)
 BUILD_DIR ?= build
 SRC_DIRS ?= src
 DEBUG ?= n
 SRCS := $(shell find $(SRC_DIRS) -name *.cpp -or -name *.c -or -name *.s)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
+ifeq ($(WIN), y)
+	SDL_DIR = SDL2-2.0.14
+	TARGET_ARCH = x86_64
+	INC_DIRS += $(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/include
+	LDFLAGS += -L$(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/lib -lSDL2main
+	CC = $(TARGET_ARCH)-w64-mingw32-gcc
+	CXX = $(TARGET_ARCH)-w64-mingw32-g++
+	EXT = exe
+endif
 
 INC_DIRS += inc
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
@@ -17,10 +27,12 @@ CFLAGS ?= -Wall -Wextra -Werror -pedantic -std=c11
 ifeq ($(DEBUG), y)
 	CFLAGS += -g
 endif
-LDFLAGS += -Xlinker -Map=$(BUILD_DIR)/$(TARGET_EXEC).map
+LDFLAGS += -lSDL2 -Xlinker -Map=$(BUILD_DIR)/$(TARGET_EXEC).map
+
+# executable
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 		$(CC) $(OBJS) -o $@ $(LDFLAGS)
-
+		cp $(PWD)/$(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/bin/SDL2.dll $(PWD)/$(BUILD_DIR)/SDL2.dll
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
 	$(MKDIR_P) $(dir $@)
