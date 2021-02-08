@@ -1,4 +1,4 @@
-WIN ?= n
+WIN ?= y
 EXT ?= elf
 CC = gcc
 CXX = g++
@@ -50,11 +50,6 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(MKDIR_P) $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-run:
-	./$(BUILD_DIR)/$(TARGET_EXEC) $(filter-out $@,$(MAKECMDGOALS))
-%:
-	@:
-
 .PHONY: clean
 
 clean:
@@ -62,3 +57,4 @@ clean:
 -include $(DEPS)
 
 MKDIR_P ?= mkdir -p
+

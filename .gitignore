@@ -46,9 +46,11 @@
 *.su
 *.idb
 *.pdb
-# vim swp files
+
+# Vim swp files
 .*.*.swp
 .*.swp
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd
