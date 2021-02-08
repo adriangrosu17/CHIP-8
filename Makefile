@@ -32,7 +32,9 @@ LDFLAGS += -lSDL2 -Xlinker -Map=$(BUILD_DIR)/$(TARGET_EXEC).map
 # executable
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 		$(CC) $(OBJS) -o $@ $(LDFLAGS)
+ifeq ($(WIN), y)
 		cp $(PWD)/$(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/bin/SDL2.dll $(PWD)/$(BUILD_DIR)/SDL2.dll
+endif
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
 	$(MKDIR_P) $(dir $@)
