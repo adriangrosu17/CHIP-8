@@ -13,7 +13,7 @@ ifeq ($(WIN), y)
 	SDL_DIR = SDL2-2.0.14
 	TARGET_ARCH = x86_64
 	INC_DIRS += $(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/include
-	LDFLAGS += -L$(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/lib -lSDL2main
+	LDFLAGS += -L$(SDL_DIR)/$(TARGET_ARCH)-w64-mingw32/lib -lmingw32 -lSDL2main
 	CC = $(TARGET_ARCH)-w64-mingw32-gcc
 	CXX = $(TARGET_ARCH)-w64-mingw32-g++
 	EXT = exe
