@@ -1,5 +1,4 @@
 #include <cpu.h>
-#include <renderer.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <assert.h>
@@ -18,14 +17,11 @@ int main(int argc, char *argv[])
         Chip8 it;
         size_t size;
         sc = InitInterpreter(&it);
-        assert(0 == sc && "error initializing interpreter\n");
+        assert(0 == sc && "error initializing interpreter");
         sc = LoadRom(argv[1], &it, &size);
         assert(0 == sc && "error loading ROM");
-        for(size_t i = 0; i < size; ++i)
-        {
-            printf("%X ", it.ram[ROM_START_ADDRESS + i]);
-        }
         sc = RunInterpreter(&it);
+        assert(0 == sc && "error running interpreter");
     }
     return sc;
 }

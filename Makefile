@@ -1,5 +1,6 @@
 WIN ?= y
 EXT ?= elf
+DEBUG ?= n
 CC = gcc
 CXX = g++
 TARGET_EXEC ?= chip8.$(EXT)
@@ -26,6 +27,7 @@ CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
 CFLAGS ?= -Wall -Wextra -Werror -pedantic -std=c11
 ifeq ($(DEBUG), y)
 	CFLAGS += -g
+	CPPFLAGS += -DDEBUG
 endif
 LDFLAGS += -lSDL2 -Xlinker -Map=$(BUILD_DIR)/$(TARGET_EXEC).map
 
