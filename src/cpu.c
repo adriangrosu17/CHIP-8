@@ -2,17 +2,21 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FONT_START_ADDRESS (0x50)
 #define ROM_START_ADDRESS  (0x200)
 #define MAX_ROM_SIZE       (RAM_SIZE - ROM_START_ADDRESS)
+#define FONT_WIDTH         (8)
+#define FONT_HEIGHT        (5)
 
 #if defined(DEBUG)
-#define D_FLAG             (1 << 0)
-#define V_FLAG             (1 << 1)
-#define S_FLAG             (1 << 2)
-#define I_FLAG             (1 << 3)
-#define P_FLAG             (1 << 4)
+#define A_FLAG             (1 << 0)
+#define D_FLAG             (1 << 1)
+#define V_FLAG             (1 << 2)
+#define S_FLAG             (1 << 3)
+#define I_FLAG             (1 << 4)
+#define P_FLAG             (1 << 5)
 #endif
 
 static const uint8_t fonts[] = {
@@ -62,6 +66,13 @@ int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
             else
             {
                 rewind(file);
+                size_t bytes_read = fread(&it->ram[ROM_START_ADDRESS], sizeof(uint8_t), rom_size, file);
+                if(bytes_read != rom_size)
+                {
+                    printf("Error reading ROM: mismatch between ROM size and number of bytes read\n");
+                    exit(-1);
+                }
+                /* rewind(file);
                 for(size_t i = 0; i < rom_size; ++i)
                 {
                     it->ram[ROM_START_ADDRESS + i] = fgetc(file);
@@ -69,7 +80,7 @@ int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
                     {
                         break;
                     }
-                }
+                }*/
                 printf("Loaded ROM %s with size %lu\n", name, (unsigned long)rom_size);
                 *size = rom_size;
             }
@@ -122,8 +133,9 @@ static uint16_t PopStack(Chip8 *it)
     }
     else
     {
-        uint16_t stack_value = it->stack[it->sp--];
-        if(int32_t->sp >= STACK_ENTRIES)
+        it->sp--;
+        uint16_t stack_value = it->stack[it->sp];
+        if(it->sp > STACK_ENTRIES)
         {
             printf("Stack underflow\n");
             exit(-1);
@@ -131,8 +143,6 @@ static uint16_t PopStack(Chip8 *it)
         return stack_value;
     }
 }
-
-
 
 static void PushStack(Chip8 *it, uint16_t value)
 {
@@ -142,7 +152,7 @@ static void PushStack(Chip8 *it, uint16_t value)
         return;
     }
     it->stack[it->sp++]= value;
-    if(it->sp >= STACK_ENTRIES)
+    if(it->sp > STACK_ENTRIES)
     {
         printf("Stack overflow\n");
         exit(-1);
@@ -152,18 +162,23 @@ static void PushStack(Chip8 *it, uint16_t value)
 int32_t RunInterpreter(Chip8 *it)
 {
     printf("\nRunning interpreter...\n");
-    bool pc_incr;
-    uint16_t *instr = NULL;
+    uint8_t pc_incr;
+    uint16_t instr = 0;
     uint8_t X, Y, N, NN;
     uint16_t NNN;
+    uint8_t x_start, y_start;
 #if defined(DEBUG)
-    printf("[DEBUG] Enable debug flags d/v/s/i/p\n");
+    printf("[DEBUG] Enable debug flags a/d/v/s/i/p\n");
+    printf("[DEBUG] Press x to continue execution\n");
     uint8_t c = 0, flags = 0;
-    while(c != 'x')
+    while(1)
     {
         c = getchar();
         switch(c)
         {
+            case 'a':
+                flags |= A_FLAG;
+                break;
             case 'd':
                 flags |= D_FLAG;
                 break;
@@ -179,9 +194,17 @@ int32_t RunInterpreter(Chip8 *it)
             case 'p':
                 flags |= P_FLAG;
                 break;
-            default:
-                printf("To continue with the execution type x, current flags 0x%X\n", flags);
+            case 'x':
+                printf("[DEBUG] Continuing execution...\n");
                 break;
+            default:
+                printf("[DEBUG] To continue with the execution type x, current flags 0x%X\n", flags);
+                break;
+        }
+        if('x' == c)
+        {
+            c = getchar();
+            break;
         }
         while((c = getchar()) != '\n');
     }
@@ -193,15 +216,13 @@ int32_t RunInterpreter(Chip8 *it)
         if(flags & D_FLAG)
         {
             printf("[DEBUG] Display matrix:\n");
-            for(size_t i = 0; i < WIDTH; ++i)
+            for(size_t i = 0; i < HEIGHT; ++i)
             {
-                for(size_t j = 0; j < HEIGHT; ++j)
+                for(size_t j = 0; j < WIDTH; ++j)
                 {
-                    printf("it->display[%lu][%lu] = 0x%X\n",
-                            (unsigned long)i,
-                            (unsigned long)j,
-                            it->display[i][j]);
+                    printf("%c", it->display[i][j] ? 'X' : '.');
                 }
+                printf("\n");
             }
         }
         if(flags & V_FLAG)
@@ -209,7 +230,7 @@ int32_t RunInterpreter(Chip8 *it)
             printf("[DEBUG] V# Registers:\n");
             for(size_t i = 0; i < GP_REGISTERS; ++i)
             {
-                printf("it->v[%lu] = 0x%X\n", (unsigned long)i, it->v[i]);
+                printf("it->v[0x%lX] = 0x%X\n", (unsigned long)i, it->v[i]);
             }
         }
         if(flags & S_FLAG)
@@ -217,35 +238,42 @@ int32_t RunInterpreter(Chip8 *it)
             printf("[DEBUG] Stack entries:\n");
             for(size_t i = 0; i < it->sp; ++i)
             {
-                printf("it->sp[%lu] = 0x%X\n", (unsigned long)i, it->sp[i]);
+                printf("it->stack[%lu] = 0x%X\n", (unsigned long)i, it->stack[i]);
             }
         }
         if(flags & I_FLAG)
         {
             printf("[DEBUG] I Register:\n");
             printf("it->i = 0x%X\n", it->i);
+            printf("[DEBUG] RAM at I:\n");
+            printf("it->ram[0x%X] = 0x%X\n", it->i, it->ram[it->i]);
         }
         if(flags & P_FLAG)
         {
             printf("[DEBUG] PC:\n");
             printf("it->pc = 0x%X\n", it->pc);
+            printf("[DEBUG] RAM at PC:\n");
+            printf("it->ram[0x%X] = 0x%X\n", it->pc, it->ram[it->pc] << 8 | it->ram[it->pc + 1]);
         }
-        getchar();
+        if(!(flags & A_FLAG))
+        {
+            getchar();
+        }
 #endif
-        pc_incr = true;
-        // pointer to a 16bit value which is the current opcode
-        instr = (uint16_t *)&it->ram[it->pc];
+        pc_incr = 1;
+        // current instruction opcode
+        instr = (it->ram[it->pc] << 8) | it->ram[it->pc + 1];
         // the second nibble
-        X = ((*instr) >> 8) & 0x0F;
+        X = ((instr) >> 8) & 0x0F;
         // the third nibble
-        Y = ((*instr) >> 4) & 0x0F;
+        Y = ((instr) >> 4) & 0x0F;
         // the fourth nibble
-        N = *instr & 0x0F;
+        N = instr & 0x0F;
         // the second byte
-        NN = *instr * 0xFF;
+        NN = instr & 0xFF;
         // the last 12 bits
-        NNN = (*instr) & 0x0FFF;
-        switch(*instr >> 12)
+        NNN = (instr) & 0x0FFF;
+        switch(instr >> 12)
         {
             case 0x00:
                 if(0x0E0 == NNN)
@@ -258,15 +286,16 @@ int32_t RunInterpreter(Chip8 *it)
                 }
                 else
                 {
-                    printf("Wrong opcode detected: 0x%X\n", *instr);
+                    printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                     exit(-1);
                 }
                 break;
             case 0x01:
-                pc_incr = false;
+                pc_incr = 0;
                 it->pc = NNN;
                 break;
             case 0x02:
+                pc_incr = 0;
                 PushStack(it, it->pc);
                 it->pc = NNN;
                 break;
@@ -292,7 +321,7 @@ int32_t RunInterpreter(Chip8 *it)
                 }
                 else
                 {
-                    printf("Wrong opcode detected: 0x%X\n", *instr);
+                    printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                 }
                 break;
             case 0x06:
@@ -337,14 +366,14 @@ int32_t RunInterpreter(Chip8 *it)
                         break;
                     case 0x07:
                         it->v[0x0F] = (it->v[Y] >= it->v[X]);
-                        it->v[Y] -= it->v[X];
+                        it->v[X] = it->v[Y] - it->v[X];
                         break;
                     case 0x0E:
                         it->v[0x0F] = (it->v[X] >> 7);
                         it->v[X] <<= 1;
                         break;
                     default:
-                        printf("Wrong opcode detected: 0x%X\n", *instr);
+                        printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                         break;
                 }
                 break;
@@ -358,39 +387,119 @@ int32_t RunInterpreter(Chip8 *it)
                 }
                 else
                 {
-                    printf("Wrong opcode detected: 0x%X\n", *instr);
+                    printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                 }
                 break;
             case 0x0A:
                 it->i = NNN;
                 break;
             case 0x0B:
-                pc_incr = false;
+                pc_incr = 0;
                 it->pc = it->v[0x00] + NNN;
                 break;
             case 0x0C:
                 it->v[X] = rand() & NN;
                 break;
             case 0x0D:
+                x_start = it->v[X] & (WIDTH - 1);
+                y_start = it->v[Y] & (HEIGHT - 1);
+                it->v[0x0F] = 0;
+                for(uint8_t row = 0; (row < N) && (y_start + row < HEIGHT); ++row)
+                {
+                    for(uint8_t bit_pixel = 0; (bit_pixel < 8) && (x_start + bit_pixel < WIDTH); ++bit_pixel)
+                    {
+                        if(it->ram[it->i + row] & (1 << (8 - bit_pixel - 1)))
+                        {
+                            it->display[y_start + row][x_start + bit_pixel] ^= 1;
+                            if(!it->display[y_start + row][x_start + bit_pixel])
+                            {
+                                it->v[0x0F] = 1;
+                            }
+                        }
+                    }
+                }
                 break;
             case 0x0E:
                 switch(NN)
                 {
                     case 0x9E:
-
+                        if(it->key == it->v[X])
+                        {
+                            it->pc += 2;
+                        }
                         break;
                     case 0xA1:
+                        if(it->key != it->v[X])
+                        {
+                            it->pc += 2;
+                        }
                         break;
                     default:
-                        printf("Wrong opcode detected: 0x%X\n", *instr);
+                        printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                         break;
                 }
                 break;
             case 0x0F:
+                switch(NN)
+                {
+                    case 0x07:
+                        it->v[X] = it->delay;
+                        break;
+                    case 0x0A:
+                        if(NO_KEY == it->key)
+                        {
+                            pc_incr = 0;
+                        }
+                        else
+                        {
+                            it->v[X] = it->key;
+                        }
+                        break;
+                    case 0x15:
+                        it->delay = it->v[X];
+                        break;
+                    case 0x18:
+                        it->sound = it->v[X];
+                        break;
+                    case 0x1E:
+                        it->i += it->v[X];
+                        if(it->i >= 0x1000)
+                        {
+                            it->v[0x0F] = 1;
+                        }
+                        break;
+                    case 0x29:
+                        it->i = FONT_START_ADDRESS + (it->v[X] & 0x0F) * 5;
+                        break;
+                    case 0x33:
+                        it->ram[it->i + 2] = it->v[X] % 10;
+                        it->ram[it->i + 1] = (it->v[X] / 10) % 10;
+                        it->ram[it->i] = it->v[X] / 100;
+                        break;
+                    case 0x55:
+                        for(uint8_t gp_reg = 0; gp_reg < X; ++gp_reg)
+                        {
+                            it->ram[it->i + gp_reg] = it->v[gp_reg];
+                        }
+                        break;
+                    case 0x65:
+                        for(uint8_t gp_reg = 0; gp_reg < X; ++gp_reg)
+                        {
+                            it->v[gp_reg] = it->ram[it->i + gp_reg];
+                        }
+                        break;
+                    default:
+                        printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                        break;
+                }
                 break;
             default:
-                printf("Wrong opcode detected: 0x%X\n", *instr);
+                printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
                 break;
+        }
+        if(pc_incr)
+        {
+            it->pc += 2;
         }
     }
     return 0;
