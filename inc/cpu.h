@@ -2,6 +2,7 @@
 #define _INC_CPU_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define RAM_SIZE      (4 * 1024)
 #define STACK_ENTRIES (16)
