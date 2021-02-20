@@ -1,7 +1,11 @@
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_video.h>
 #include <cpu.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <assert.h>
+#include <SDL2/SDL.h>
+#include <time.h>
 
 #define ROM_START_ADDRESS (0x200)
 
@@ -10,7 +14,7 @@ int main(int argc, char *argv[])
     int sc = 0;
     if(2 != argc)
     {
-        printf("Wrong number of arguments\n");
+        printf("Incorrect number of arguments provided\n");
     }
     else
     {

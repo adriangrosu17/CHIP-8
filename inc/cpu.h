@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <SDL2/SDL.h>
 
 #define RAM_SIZE      (4 * 1024)
 #define STACK_ENTRIES (16)
@@ -28,15 +29,22 @@ typedef enum
     KEY_X,
     KEY_C,
     KEY_V,
+    KEY_ESC = 0xEE,
     NO_KEY = 0xFF
 }KeyType;
 
 typedef struct
 {
+    uint32_t display[HEIGHT * WIDTH];
     uint8_t ram[RAM_SIZE];
-    uint8_t display[HEIGHT][WIDTH];
     uint16_t stack[STACK_ENTRIES];
     uint8_t v[GP_REGISTERS];
+    uint32_t *pixels;
+    int32_t pitch;
+    uint32_t quit;
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
     uint16_t i;
     uint16_t pc;
     uint16_t rom_size;

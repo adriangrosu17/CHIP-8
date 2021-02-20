@@ -1,14 +1,17 @@
 #include <cpu.h>
+#include <renderer.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define FONT_START_ADDRESS (0x50)
 #define ROM_START_ADDRESS  (0x200)
 #define MAX_ROM_SIZE       (RAM_SIZE - ROM_START_ADDRESS)
 #define FONT_WIDTH         (8)
 #define FONT_HEIGHT        (5)
+#define SLEEP_TIME_US      (1500)
 
 #if defined(DEBUG)
 #define A_FLAG             (1 << 0)
@@ -37,92 +40,6 @@ static const uint8_t fonts[] = {
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
-
-int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
-{
-    if((NULL == name) || (NULL == it))
-    {
-        printf("NULL name or it parameter\n");
-        return -1;
-    }
-    int sc = 0;
-    FILE *file = fopen(name, "rb");
-    if(NULL == file)
-    {
-        printf("Error opening file %s\n", name);
-        sc = -1;
-    }
-    else
-    {
-        sc = fseek(file, 0L, SEEK_END);
-        if(0 == sc)
-        {
-            size_t rom_size = 0;
-            rom_size = ftell(file);
-            if(rom_size > MAX_ROM_SIZE)
-            {
-                printf("ROM size exceeds maximum limit\n");
-            }
-            else
-            {
-                rewind(file);
-                size_t bytes_read = fread(&it->ram[ROM_START_ADDRESS], sizeof(uint8_t), rom_size, file);
-                if(bytes_read != rom_size)
-                {
-                    printf("Error reading ROM: mismatch between ROM size and number of bytes read\n");
-                    exit(-1);
-                }
-                /* rewind(file);
-                for(size_t i = 0; i < rom_size; ++i)
-                {
-                    it->ram[ROM_START_ADDRESS + i] = fgetc(file);
-                    if(feof(file))
-                    {
-                        break;
-                    }
-                }*/
-                printf("Loaded ROM %s with size %lu\n", name, (unsigned long)rom_size);
-                *size = rom_size;
-            }
-        }
-        else
-        {
-            printf("Can't seek to end of file\n");
-        }
-        sc = fclose(file);
-        if(0 != sc)
-        {
-            printf("Error closing file %s\n", name);
-        }
-    }
-    return sc;
-}
-
-int32_t InitInterpreter(Chip8 *it)
-{
-    if(NULL == it)
-    {
-        printf("NULL interpreter parameter\n");
-        return -1;
-    }
-    memset(it, 0, sizeof(Chip8));
-    // load fonts in RAM between 0x50-0x9F
-    memcpy(&it->ram[FONT_START_ADDRESS], fonts, sizeof(fonts));
-    it->pc = ROM_START_ADDRESS;
-    return 0;
-}
-
-static inline void ClearDisplay(Chip8 *it)
-{
-    if(NULL == it)
-    {
-        printf("NULL interpreter parameter\n");
-    }
-    else
-    {
-        memset(it->display, 0, sizeof(it->display));
-    }
-}
 
 static uint16_t PopStack(Chip8 *it)
 {
@@ -159,9 +76,88 @@ static void PushStack(Chip8 *it, uint16_t value)
     }
 }
 
+int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
+{
+    if((NULL == name) || (NULL == it))
+    {
+        printf("NULL name or it parameter\n");
+        return -1;
+    }
+    int sc = 0;
+    FILE *file = fopen(name, "rb");
+    if(NULL == file)
+    {
+        printf("Error opening file %s\n", name);
+        sc = -1;
+    }
+    else
+    {
+        sc = fseek(file, 0L, SEEK_END);
+        if(0 == sc)
+        {
+            size_t rom_size = 0;
+            rom_size = ftell(file);
+            if(rom_size > MAX_ROM_SIZE)
+            {
+                printf("ROM size exceeds maximum limit\n");
+            }
+            else
+            {
+                rewind(file);
+                size_t bytes_read = fread(&it->ram[ROM_START_ADDRESS], sizeof(uint8_t), rom_size, file);
+                if(bytes_read != rom_size)
+                {
+                    printf("Error reading ROM: mismatch between ROM size and number of bytes read\n");
+                    exit(-1);
+                }
+                printf("Loaded ROM %s with size %lu\n", name, (unsigned long)rom_size);
+                *size = rom_size;
+            }
+        }
+        else
+        {
+            printf("Can't seek to end of file\n");
+        }
+        sc = fclose(file);
+        if(0 != sc)
+        {
+            printf("Error closing file %s\n", name);
+        }
+    }
+    return sc;
+}
+
+int32_t InitInterpreter(Chip8 *it)
+{
+    int32_t sc = 0;
+    if(NULL == it)
+    {
+        printf("NULL interpreter parameter\n");
+        return -1;
+    }
+    memset(it, 0, sizeof(Chip8));
+    // load fonts in RAM between 0x50-0x9F
+    memcpy(&it->ram[FONT_START_ADDRESS], fonts, sizeof(fonts));
+    it->pc = ROM_START_ADDRESS;
+    sc = InitSDL(&it->window, &it->renderer, &it->texture);
+    if(sc < 0)
+    {
+        return -1;
+    }
+    sc = ClearDisplay(it->renderer, it->texture, (void*)&it->pixels, &it->pitch);
+    if(sc < 0)
+    {
+        printf("Error clearing display\n");
+        return -1;
+    }
+    return 0;
+}
+
 int32_t RunInterpreter(Chip8 *it)
 {
     printf("\nRunning interpreter...\n");
+    int32_t sc = 0;
+    uint8_t instr_emulated = 0;
     uint8_t pc_incr;
     uint16_t instr = 0;
     uint8_t X, Y, N, NN;
@@ -210,7 +206,7 @@ int32_t RunInterpreter(Chip8 *it)
     }
 #endif
     srand(time(NULL));
-    while(1)
+    while(!it->quit)
     {
 #if defined(DEBUG)
         if(flags & D_FLAG)
@@ -220,7 +216,7 @@ int32_t RunInterpreter(Chip8 *it)
             {
                 for(size_t j = 0; j < WIDTH; ++j)
                 {
-                    printf("%c", it->display[i][j] ? 'X' : '.');
+                    printf("%c", it->pixels[i * WIDTH + j] ? 'X' : '.');
                 }
                 printf("\n");
             }
@@ -260,6 +256,23 @@ int32_t RunInterpreter(Chip8 *it)
             getchar();
         }
 #endif
+        IsKeyPressed((uint8_t*)&it->key);
+        if(KEY_ESC == it->key)
+        {
+            DeinitSDL(it->window, it->renderer, it->texture); exit(0);
+        }
+        if(instr_emulated >= 12)
+        {
+            instr_emulated = 0;
+            if(it->delay)
+            {
+                it->delay--;
+            }
+            if(it->sound)
+            {
+                it->sound--;
+            }
+        }
         pc_incr = 1;
         // current instruction opcode
         instr = (it->ram[it->pc] << 8) | it->ram[it->pc + 1];
@@ -278,7 +291,11 @@ int32_t RunInterpreter(Chip8 *it)
             case 0x00:
                 if(0x0E0 == NNN)
                 {
-                    ClearDisplay(it);
+                    sc = ClearDisplay(it->renderer, it->texture, (void*)&it->pixels, &it->pitch);
+                    if(sc < 0)
+                    {
+                        DeinitSDL(it->window, it->renderer, it->texture); exit(0);
+                    }
                 }
                 else if(0x0EE == NNN)
                 {
@@ -287,7 +304,7 @@ int32_t RunInterpreter(Chip8 *it)
                 else
                 {
                     printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
-                    exit(-1);
+                    DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                 }
                 break;
             case 0x01:
@@ -322,6 +339,7 @@ int32_t RunInterpreter(Chip8 *it)
                 else
                 {
                     printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                    DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                 }
                 break;
             case 0x06:
@@ -374,6 +392,7 @@ int32_t RunInterpreter(Chip8 *it)
                         break;
                     default:
                         printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                        DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                         break;
                 }
                 break;
@@ -388,6 +407,7 @@ int32_t RunInterpreter(Chip8 *it)
                 else
                 {
                     printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                    DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                 }
                 break;
             case 0x0A:
@@ -410,13 +430,23 @@ int32_t RunInterpreter(Chip8 *it)
                     {
                         if(it->ram[it->i + row] & (1 << (8 - bit_pixel - 1)))
                         {
-                            it->display[y_start + row][x_start + bit_pixel] ^= 1;
-                            if(!it->display[y_start + row][x_start + bit_pixel])
+                            if(it->display[(y_start + row) * WIDTH + x_start + bit_pixel] == 0x00000000)
                             {
+                                it->display[(y_start + row) * WIDTH + x_start + bit_pixel] = 0x00FFFFFF;
+                            }
+                            else
+                            {
+                                it->display[(y_start + row) * WIDTH + x_start + bit_pixel] = 0x00000000;
                                 it->v[0x0F] = 1;
                             }
                         }
                     }
+                }
+                sc = UpdateScreen(it->renderer, it->texture, (void*)&it->pixels, &it->pitch, it->display);
+                if(sc < 0)
+                {
+                    printf("Error updating screen with new pixel data\n");
+                    DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                 }
                 break;
             case 0x0E:
@@ -436,6 +466,7 @@ int32_t RunInterpreter(Chip8 *it)
                         break;
                     default:
                         printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                        DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                         break;
                 }
                 break;
@@ -490,17 +521,21 @@ int32_t RunInterpreter(Chip8 *it)
                         break;
                     default:
                         printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                        DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                         break;
                 }
                 break;
             default:
                 printf("Wrong opcode 0x%X detected at PC 0x%X\n", instr, it->pc);
+                DeinitSDL(it->window, it->renderer, it->texture); exit(0);
                 break;
         }
         if(pc_incr)
         {
             it->pc += 2;
         }
+        ++instr_emulated;
+        usleep(SLEEP_TIME_US);
     }
     return 0;
 }
