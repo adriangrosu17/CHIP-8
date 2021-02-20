@@ -24,7 +24,7 @@ INC_DIRS += inc
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
-CFLAGS ?= -Wall -Wextra -Werror -pedantic -std=c11
+CFLAGS ?= -Wall -Wextra -Werror -pedantic -std=c99
 ifeq ($(DEBUG), y)
 	CFLAGS += -g
 	CPPFLAGS += -DDEBUG
