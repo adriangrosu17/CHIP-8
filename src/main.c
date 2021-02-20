@@ -3,8 +3,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-#define ROM_START_ADDRESS (0x200)
-
 int main(int argc, char *argv[])
 {
     int sc = 0;
@@ -15,10 +13,9 @@ int main(int argc, char *argv[])
     else
     {
         Chip8 it;
-        size_t size;
         sc = InitInterpreter(&it);
         assert(0 == sc && "error initializing interpreter");
-        sc = LoadRom(argv[1], &it, &size);
+        sc = LoadRom(argv[1], &it);
         assert(0 == sc && "error loading ROM");
         sc = RunInterpreter(&it);
         assert(0 == sc && "error running interpreter");

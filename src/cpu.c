@@ -76,7 +76,7 @@ static void PushStack(Chip8 *it, uint16_t value)
     }
 }
 
-int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
+int32_t LoadRom(const char *name, Chip8 *it)
 {
     if((NULL == name) || (NULL == it))
     {
@@ -111,7 +111,6 @@ int32_t LoadRom(const char *name, Chip8 *it, size_t *size)
                     exit(-1);
                 }
                 printf("Loaded ROM %s with size %lu\n", name, (unsigned long)rom_size);
-                *size = rom_size;
             }
         }
         else

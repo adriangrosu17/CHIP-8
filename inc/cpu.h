@@ -54,7 +54,7 @@ typedef struct
     KeyType key;
 }Chip8;
 
-int32_t LoadRom(const char *name, Chip8 *it, size_t *size);
+int32_t LoadRom(const char *name, Chip8 *it);
 int32_t InitInterpreter(Chip8 *it);
 int32_t RunInterpreter(Chip8 *it);
 
