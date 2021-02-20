@@ -168,8 +168,8 @@ void IsKeyPressed(uint8_t *key)
                     return;
                 }
             }
+            *key = 0xFF;
         }
-        *key = 0xFF;
     }
     else
     {

@@ -259,7 +259,7 @@ int32_t RunInterpreter(Chip8 *it)
         IsKeyPressed((uint8_t*)&it->key);
         if(KEY_ESC == it->key)
         {
-            DeinitSDL(it->window, it->renderer, it->texture); exit(0);
+            it->quit = 1;
         }
         if(instr_emulated >= 12)
         {
@@ -537,6 +537,7 @@ int32_t RunInterpreter(Chip8 *it)
         ++instr_emulated;
         usleep(SLEEP_TIME_US);
     }
+    DeinitSDL(it->window, it->renderer, it->texture);
     return 0;
 }
 
