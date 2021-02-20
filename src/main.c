@@ -1,11 +1,7 @@
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_video.h>
 #include <cpu.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <assert.h>
-#include <SDL2/SDL.h>
-#include <time.h>
 
 #define ROM_START_ADDRESS (0x200)
 

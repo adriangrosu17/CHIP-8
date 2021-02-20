@@ -256,23 +256,6 @@ int32_t RunInterpreter(Chip8 *it)
             getchar();
         }
 #endif
-        IsKeyPressed((uint8_t*)&it->key);
-        if(KEY_ESC == it->key)
-        {
-            it->quit = 1;
-        }
-        if(instr_emulated >= 12)
-        {
-            instr_emulated = 0;
-            if(it->delay)
-            {
-                it->delay--;
-            }
-            if(it->sound)
-            {
-                it->sound--;
-            }
-        }
         pc_incr = 1;
         // current instruction opcode
         instr = (it->ram[it->pc] << 8) | it->ram[it->pc + 1];
@@ -535,6 +518,23 @@ int32_t RunInterpreter(Chip8 *it)
             it->pc += 2;
         }
         ++instr_emulated;
+        IsKeyPressed((uint8_t*)&it->key);
+        if(KEY_ESC == it->key)
+        {
+            it->quit = 1;
+        }
+        if(instr_emulated >= 12)
+        {
+            instr_emulated = 0;
+            if(it->delay)
+            {
+                it->delay--;
+            }
+            if(it->sound)
+            {
+                it->sound--;
+            }
+        }
         usleep(SLEEP_TIME_US);
     }
     DeinitSDL(it->window, it->renderer, it->texture);
