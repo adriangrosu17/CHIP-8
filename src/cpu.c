@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include <cpu.h>
 #include <renderer.h>
 #include <time.h>
@@ -6,12 +7,21 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef CPU_FREQUENCY
+#define CPU_FREQUENCY      (600)
+#endif
+
+#ifndef DISPLAY_FPS
+#define DISPLAY_FPS        (60)
+#endif
+
 #define FONT_START_ADDRESS (0x50)
 #define ROM_START_ADDRESS  (0x200)
 #define MAX_ROM_SIZE       (RAM_SIZE - ROM_START_ADDRESS)
 #define FONT_WIDTH         (8)
 #define FONT_HEIGHT        (5)
-#define SLEEP_TIME_US      (1500)
+#define SECOND_IN_US       (1 * 1000 * 1000)
+#define SECOND_IN_NS       (1 * 1000 * 1000 * 1000)
 
 #if defined(DEBUG)
 #define A_FLAG             (1 << 0)
@@ -143,7 +153,8 @@ int32_t InitInterpreter(Chip8 *it)
     {
         return -1;
     }
-    sc = ClearDisplay(it->renderer, it->texture, (void*)&it->pixels, &it->pitch);
+    memset(it->display, 0, sizeof(it->display));
+    sc = UpdateScreen(it->renderer, it->texture, (void*)&it->pixels, &it->pitch, it->display);
     if(sc < 0)
     {
         printf("Error clearing display\n");
@@ -156,12 +167,13 @@ int32_t RunInterpreter(Chip8 *it)
 {
     printf("\nRunning interpreter...\n");
     int32_t sc = 0;
-    uint8_t instr_emulated = 0;
+    uint32_t instr_emulated = 0;
     uint8_t pc_incr;
     uint16_t instr = 0;
     uint8_t X, Y, N, NN;
     uint16_t NNN;
     uint8_t x_start, y_start;
+    struct timespec start, end;
 #if defined(DEBUG)
     printf("[DEBUG] Enable debug flags a/d/v/s/i/p\n");
     printf("[DEBUG] Press x to continue execution\n");
@@ -255,6 +267,7 @@ int32_t RunInterpreter(Chip8 *it)
             getchar();
         }
 #endif
+        clock_gettime(CLOCK_MONOTONIC, &start);
         pc_incr = 1;
         // current instruction opcode
         instr = (it->ram[it->pc] << 8) | it->ram[it->pc + 1];
@@ -273,11 +286,7 @@ int32_t RunInterpreter(Chip8 *it)
             case 0x00:
                 if(0x0E0 == NNN)
                 {
-                    sc = ClearDisplay(it->renderer, it->texture, (void*)&it->pixels, &it->pitch);
-                    if(sc < 0)
-                    {
-                        DeinitSDL(it->window, it->renderer, it->texture); exit(0);
-                    }
+                    memset(it->display, 0, sizeof(it->display));
                 }
                 else if(0x0EE == NNN)
                 {
@@ -424,12 +433,6 @@ int32_t RunInterpreter(Chip8 *it)
                         }
                     }
                 }
-                sc = UpdateScreen(it->renderer, it->texture, (void*)&it->pixels, &it->pitch, it->display);
-                if(sc < 0)
-                {
-                    printf("Error updating screen with new pixel data\n");
-                    DeinitSDL(it->window, it->renderer, it->texture); exit(0);
-                }
                 break;
             case 0x0E:
                 switch(NN)
@@ -516,13 +519,13 @@ int32_t RunInterpreter(Chip8 *it)
         {
             it->pc += 2;
         }
-        ++instr_emulated;
         IsKeyPressed((uint8_t*)&it->key);
         if(KEY_ESC == it->key)
         {
             it->quit = 1;
         }
-        if(instr_emulated >= 12)
+        ++instr_emulated;
+        if(instr_emulated >= CPU_FREQUENCY / DISPLAY_FPS)
         {
             instr_emulated = 0;
             if(it->delay)
@@ -533,8 +536,17 @@ int32_t RunInterpreter(Chip8 *it)
             {
                 it->sound--;
             }
+            sc = UpdateScreen(it->renderer, it->texture, (void*)&it->pixels, &it->pitch, it->display);
+            if(sc < 0)
+            {
+                printf("Error updating screen with new pixel data\n");
+                DeinitSDL(it->window, it->renderer, it->texture); exit(0);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            end.tv_nsec = end.tv_nsec > start.tv_nsec ? end.tv_nsec : SECOND_IN_NS + end.tv_nsec;
+            uint32_t sleep_time = (SECOND_IN_US / DISPLAY_FPS - (end.tv_nsec - start.tv_nsec) / 1000);
+            usleep(sleep_time);
         }
-        usleep(SLEEP_TIME_US);
     }
     DeinitSDL(it->window, it->renderer, it->texture);
     return 0;

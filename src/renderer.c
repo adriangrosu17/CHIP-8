@@ -77,41 +77,6 @@ void DeinitSDL(SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture)
     }
 }
 
-int32_t ClearDisplay(SDL_Renderer *renderer, SDL_Texture *texture, void **pixels, int32_t *pitch)
-{
-   if((NULL != renderer) && (NULL != texture) && (NULL != pixels) && (NULL != pitch))
-   {
-       int32_t sc = 0;
-       sc = SDL_RenderClear(renderer);
-       if(sc < 0)
-       {
-           printf("Error clearing renderer, SDL_Error: %s\n", SDL_GetError());
-           return -1;
-       }
-       sc = SDL_LockTexture(texture, NULL, pixels, pitch);
-       if(sc < 0)
-       {
-           printf("Error locking texture, SDL_Error: %s\n", SDL_GetError());
-           return -1;
-       }
-       memset(*pixels, 0, WIDTH * HEIGHT * sizeof(uint32_t));
-       SDL_UnlockTexture(texture);
-       sc = SDL_RenderCopy(renderer, texture, NULL, NULL);
-       if(sc < 0)
-       {
-           printf("Error copying texture to renderer, SDL_Error: %s\n", SDL_GetError());
-           return -1;
-       }
-       SDL_RenderPresent(renderer);
-   }
-   else
-   {
-       printf("NULL parameter received\n");
-       return -1;
-   }
-   return 0;
-}
-
 int32_t UpdateScreen(SDL_Renderer *renderer, SDL_Texture *texture, void **pixels, int32_t *pitch, uint32_t *display)
 {
     if((NULL != renderer) && (NULL != texture) && (NULL != pixels) && (NULL != pitch) && (NULL != display))
