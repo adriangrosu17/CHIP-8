@@ -56,7 +56,7 @@ int32_t InitSDL(SDL_Window **window, SDL_Renderer **renderer, SDL_Texture **text
     }
     else
     {
-        printf("NULL parameter received\n");
+        printf("NULL argument received\n");
         return -1;
     }
     return 0;
@@ -73,7 +73,7 @@ void DeinitSDL(SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture)
     }
     else
     {
-        printf("NULL parameter received\n");
+        printf("NULL argument received\n");
     }
 }
 
@@ -106,7 +106,7 @@ int32_t UpdateScreen(SDL_Renderer *renderer, SDL_Texture *texture, void **pixels
     }
     else
     {
-        printf("NULL parameter received\n");
+        printf("NULL argument received\n");
         return -1;
     }
     return 0;
@@ -138,7 +138,7 @@ void IsKeyPressed(uint8_t *key)
     }
     else
     {
-        printf("NULL key parameter\n");
+        printf("NULL key argument\n");
     }
 }
 

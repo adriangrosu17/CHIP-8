@@ -55,7 +55,7 @@ static uint16_t PopStack(Chip8 *it)
 {
     if(NULL == it)
     {
-        printf("NULL interpreter parameter\n");
+        printf("NULL interpreter argument\n");
         return 0;
     }
     else
@@ -75,7 +75,7 @@ static void PushStack(Chip8 *it, uint16_t value)
 {
     if(NULL == it)
     {
-        printf("NULL interpreter parameter\n");
+        printf("NULL interpreter argument\n");
         return;
     }
     it->stack[it->sp++]= value;
@@ -90,7 +90,7 @@ int32_t LoadRom(const char *name, Chip8 *it)
 {
     if((NULL == name) || (NULL == it))
     {
-        printf("NULL name or it parameter\n");
+        printf("NULL name or it argument\n");
         return -1;
     }
     int sc = 0;
@@ -141,7 +141,7 @@ int32_t InitInterpreter(Chip8 *it)
     int32_t sc = 0;
     if(NULL == it)
     {
-        printf("NULL interpreter parameter\n");
+        printf("NULL interpreter argument\n");
         return -1;
     }
     memset(it, 0, sizeof(Chip8));
